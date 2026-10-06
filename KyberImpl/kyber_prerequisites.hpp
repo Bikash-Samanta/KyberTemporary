@@ -1,9 +1,7 @@
 #pragma once
 #include <span>
 #include <cstdint>
-
-#include "params.hpp"
-#include "hash.hpp"
+#include "fips202.hpp"
 #include "kyber_ntt.hpp"
 
 
@@ -174,7 +172,7 @@ inline void compress(std::span<uint8_t, 160> compressed, std::span<const int16_t
 }
 
 
-inline void compress(std::span<uint8_t, KYBER_POLYVECCOMPRESSEDBYTES> r, 
+inline void polyvec_compress(std::span<uint8_t, KYBER_POLYVECCOMPRESSEDBYTES> r, 
                       std::span<const int16_t, KYBER_K * KYBER_N> a) {
     size_t out_idx = 0;
     uint64_t d0;

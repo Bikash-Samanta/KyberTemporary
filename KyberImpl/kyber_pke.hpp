@@ -1,3 +1,5 @@
+#pragma once
+#include "fips202.hpp"
 #include "kyber_prerequisites.hpp"
 
 // Define array capacities based on the security level K (2, 3, or 4)
@@ -37,7 +39,7 @@ static void pack_ciphertext(std::span<uint8_t, KYBER_INDCPA_BYTES> r,
                             std::span<const int16_t, KYBER_K * KYBER_N> b,
                             std::span<const int16_t, KYBER_N> v)
 {
-    compress(r.first<KYBER_POLYVECCOMPRESSEDBYTES>(), b);
+    polyvec_compress(r.first<KYBER_POLYVECCOMPRESSEDBYTES>(), b);
     compress(r.subspan<KYBER_POLYVECCOMPRESSEDBYTES>(), v);
 }
 
@@ -67,37 +69,36 @@ static unsigned int rej_uniform(std::span<int16_t> r, std::span<const uint8_t> b
     return ctr;
 }
 
-static_assert(XOF_BLOCKBYTES % 3 == 0, "Implementation of gen_matrix assumes that XOF_BLOCKBYTES is a multiple of 3");
 
-constexpr size_t GEN_MATRIX_NBLOCKS = ((12 * KYBER_N / 8 * (1 << 12) / KYBER_Q + XOF_BLOCKBYTES) / XOF_BLOCKBYTES);
+constexpr size_t GEN_MATRIX_NBLOCKS = ((12 * KYBER_N / 8 * (1 << 12) / KYBER_Q + SHAKE128_RATE) / SHAKE128_RATE);
 
 inline void generate_random_matrix(
     std::span<int16_t, KYBER_K * KYBER_K * KYBER_N> A, 
     std::span<const uint8_t, KYBER_SYMBYTES> seed, 
     bool transposed
 ){
-    std::array<uint8_t, GEN_MATRIX_NBLOCKS * XOF_BLOCKBYTES> buf;
+    std::array<uint8_t, GEN_MATRIX_NBLOCKS * SHAKE128_RATE> buf;
     xof_state state;
 
     for (size_t i = 0; i < KYBER_K; i++) {
         for (size_t j = 0; j < KYBER_K; j++) {
             if (transposed) {
-                xof_absorb(&state, seed, i, j);
+                kyber_shake128_absorb(&state, seed, i, j);
             } else {
-                xof_absorb(&state, seed, j, i);
+                kyber_shake128_absorb(&state, seed, j, i);
             }
 
-            xof_squeezeblocks(buf.data(), GEN_MATRIX_NBLOCKS, &state);
+            shake128_squeezeblocks(buf.data(), GEN_MATRIX_NBLOCKS, &state);
             
             auto poly_coeffs = A.subspan((i * KYBER_K + j) * KYBER_N, KYBER_N);
             size_t ctr = rej_uniform(poly_coeffs, buf);
 
             while (ctr < KYBER_N) {
-                xof_squeezeblocks(buf.data(), 1, &state);
+                shake128_squeezeblocks(buf.data(), 1, &state);
                 
                 ctr += rej_uniform(
                     poly_coeffs.subspan(ctr), 
-                    std::span{buf}.first(XOF_BLOCKBYTES)
+                    std::span{buf}.first(SHAKE128_RATE)
                 );
             }
         }
@@ -105,7 +106,7 @@ inline void generate_random_matrix(
 }
 
 
-inline void keygeneration_pk_sk(
+inline void kyber_pke_keypair(
     std::span<uint8_t, KYBER_INDCPA_PUBLICKEYBYTES> public_key,
     std::span<uint8_t, KYBER_INDCPA_SECRETKEYBYTES> secret_key,
     std::span<const uint8_t, KYBER_SYMBYTES> seed
@@ -148,7 +149,7 @@ inline void keygeneration_pk_sk(
 
 // u = A^T * r + e1 , v = t^T * r + e2 + m * (q/2)
 
-inline void kyber_enc(std::span<uint8_t, KYBER_INDCPA_BYTES> ciphertext,
+inline void kyber_pke_enc(std::span<uint8_t, KYBER_INDCPA_BYTES> ciphertext,
                 std::span<const uint8_t, KYBER_INDCPA_MSGBYTES> message,
                 std::span<const uint8_t, KYBER_INDCPA_PUBLICKEYBYTES> public_key,
                 std::span<const uint8_t, KYBER_SYMBYTES> seed)
@@ -199,7 +200,7 @@ inline void kyber_enc(std::span<uint8_t, KYBER_INDCPA_BYTES> ciphertext,
 // m' = v - s^T * u
 // m = recover_message(m')
 
-inline void kyber_dec(std::span<uint8_t, KYBER_INDCPA_MSGBYTES> decrypted_message,
+inline void kyber_pke_dec(std::span<uint8_t, KYBER_INDCPA_MSGBYTES> decrypted_message,
                 std::span<const uint8_t, KYBER_INDCPA_BYTES> ciphertext,
                 std::span<const uint8_t, KYBER_INDCPA_SECRETKEYBYTES> secret_key)
 {
