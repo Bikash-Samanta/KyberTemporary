@@ -5,37 +5,15 @@
 #include "kyber_ntt.hpp"
 
 
-/**
- * @brief Returns the x-th polynomial from a polynomial vector.
- *
- * @param vector Polynomial vector containing KYBER_K polynomials.
- * @param x Polynomial index.
- * @return Mutable span containing KYBER_N coefficients of the x-th polynomial.
- */
-
 inline std::span<int16_t, KYBER_N> range(std::span<int16_t, KYBER_K * KYBER_N> vector, size_t x) {
     return std::span<int16_t, KYBER_N>(vector.data() + (x) * KYBER_N, KYBER_N);
 }
 
-/**
- * @brief Returns the x-th polynomial-vector block from a larger vector.
- *
- * @param vector Vector containing KYBER_K polynomial-vector blocks.
- * @param x Block index.
- * @return Mutable span containing KYBER_K * KYBER_N coefficients of the x-th block.
- */
 
 inline std::span<int16_t, KYBER_N * KYBER_K> range(std::span<int16_t, KYBER_K * KYBER_K * KYBER_N> vector, size_t x) {
     return std::span<int16_t, KYBER_N * KYBER_K>(vector.data() + (x) * KYBER_N * KYBER_K, KYBER_N * KYBER_K);
 }
 
-/**
- * @brief Returns the x-th polynomial from a polynomial vector as read-only data.
- *
- * @param vector Polynomial vector containing KYBER_K polynomials.
- * @param x Polynomial index.
- * @return Read-only span containing KYBER_N coefficients of the x-th polynomial.
- */
 inline std::span<const int16_t, KYBER_N> crange(std::span<const int16_t, KYBER_K * KYBER_N> vector, size_t x) {
     return std::span<const int16_t, KYBER_N>(vector.data() + (x) * KYBER_N, KYBER_N);
 }
